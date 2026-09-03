@@ -26,7 +26,7 @@
     padding:0 6vw;
   }
 
-  #message{
+  .msgline{
     font-family: 'Arial Black', 'Segoe UI Black', sans-serif;
     font-weight:900;
     font-size:clamp(28px, 9vw, 64px);
@@ -37,6 +37,7 @@
       0 0 22px rgba(80,110,255,0.35);
     white-space:pre-wrap;
     max-width:900px;
+    min-height:0;
   }
 
   .cursor{
@@ -54,6 +55,26 @@
     letter-spacing:1px; font-family:Arial, sans-serif;
     opacity:0.8;
   }
+
+  #photo-wrap{
+    margin-top:32px;
+    opacity:0;
+    transform:translateY(16px) rotate(-2deg);
+    transition:opacity 0.9s ease, transform 0.9s ease;
+  }
+  #photo-wrap.show{
+    opacity:1;
+    transform:translateY(0) rotate(-2deg);
+  }
+  #photo{
+    max-width:min(70vw, 320px);
+    max-height:42vh;
+    display:block;
+    border:10px solid #f4f2ea;
+    border-bottom-width:36px;
+    border-radius:2px;
+    box-shadow:0 18px 40px rgba(0,0,0,0.55);
+  }
 </style>
 </head>
 <body>
@@ -61,7 +82,11 @@
 <canvas id="rain"></canvas>
 
 <div class="stage">
-  <div id="message"></div>
+  <div id="text-before" class="msgline"></div>
+  <div id="photo-wrap">
+    <img id="photo" src="photo.jpg" alt="">
+  </div>
+  <div id="text-after" class="msgline"></div>
 </div>
 
 <div id="hint">Chạm màn hình để gõ lại • Kéo dài URL để đổi lời nhắn</div>
@@ -69,8 +94,9 @@
 <script>
 /* ================= CẤU HÌNH ================= */
 // Đổi lời nhắn ở đây, hoặc truyền qua URL: ?msg=Loi%20nhan%20cua%20ban
+// Đặt [IMG] ở chỗ bạn muốn ảnh xuất hiện, chữ sẽ ngưng gõ, hiện ảnh, rồi gõ tiếp phần còn lại
 const params = new URLSearchParams(location.search);
-const MESSAGE = params.get('msg') || "Chào anh 🌊🌅!\nMình làm quen nhé 😄\nChúc anh một buổi tối vui vẻ ☺️ kiki";
+const MESSAGE = params.get('msg') || "Chào anh 🌊🌅!\n[IMG]\nMình làm quen nhé 😄\nChúc anh một buổi tối vui vẻ ☺️ kiki";
 const RAIN_WORDS = ["LOVE","YOU","U&I","YÊU","❤"];
 /* ============================================= */
 
@@ -126,10 +152,17 @@ function drawRain(){
 }
 drawRain();
 
-// ---------- Hiệu ứng gõ chữ ----------
-const el = document.getElementById('message');
+// ---------- Hiệu ứng gõ chữ, dừng giữa chừng để hiện ảnh ----------
+const elBefore = document.getElementById('text-before');
+const elAfter = document.getElementById('text-after');
+const photoWrap = document.getElementById('photo-wrap');
 
-function typeMessage(text){
+// tách lời nhắn thành phần trước / sau theo dấu [IMG]
+const rawParts = MESSAGE.split(/\n?\[IMG\]\n?/);
+const textBefore = rawParts[0] || "";
+const textAfter = rawParts.length > 1 ? rawParts.slice(1).join("\n") : "";
+
+function typeInto(el, text, onDone){
   el.textContent = "";
   const cursor = document.createElement('span');
   cursor.className = 'cursor';
@@ -142,13 +175,36 @@ function typeMessage(text){
       el.appendChild(cursor);
       i++;
       setTimeout(step, 90 + Math.random()*70);
+    } else {
+      cursor.remove();
+      if (onDone) onDone();
     }
   }
   step();
 }
 
-typeMessage(MESSAGE);
-document.body.addEventListener('click', ()=> typeMessage(MESSAGE));
+function playSequence(){
+  elBefore.textContent = "";
+  elAfter.textContent = "";
+  photoWrap.classList.remove('show');
+
+  typeInto(elBefore, textBefore, ()=>{
+    if (!textAfter){
+      // không có phần sau -> chỉ hiện ảnh nếu có [IMG], xong thì thôi
+      if (MESSAGE.includes('[IMG]')) setTimeout(()=> photoWrap.classList.add('show'), 300);
+      return;
+    }
+    // dừng 1 chút rồi hiện ảnh
+    setTimeout(()=>{
+      photoWrap.classList.add('show');
+      // đợi ảnh hiện xong rồi gõ tiếp phần sau
+      setTimeout(()=> typeInto(elAfter, textAfter), 1100);
+    }, 400);
+  });
+}
+
+playSequence();
+document.body.addEventListener('click', playSequence);
 </script>
 
 </body>
